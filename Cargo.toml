@@ -25,7 +25,7 @@ path = "src/step2_eval.rs"
 
 [[bin]]
 name = "step3_env"
-path = "step3_env.rs"
+path = "src/step3_env.rs"
 
 [[bin]]
 name = "step4_if_fn_do"

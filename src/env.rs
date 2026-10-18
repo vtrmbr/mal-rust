@@ -1,8 +1,13 @@
 use crate::types::MalType;
 use std::collections::HashMap;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub type EnvRef = Rc<RefCell<Env>>;
 
 pub struct Env {
     data: HashMap<String,MalType>,
+    parent: Option<EnvRef>,
 }
 
 fn add (inputs: Vec<MalType>) -> Result<MalType, String> {
@@ -40,18 +45,29 @@ fn divide (inputs: Vec<MalType>) -> Result<MalType, String> {
 }
 
 impl Env {
-    pub fn new() -> Env {
+    pub fn root() -> EnvRef {
         let mut map: HashMap<String, MalType> = HashMap::new();
         map.insert(String::from("+"), MalType::Function(add));
         map.insert(String::from("-"), MalType::Function(subtract));
         map.insert(String::from("*"), MalType::Function(multiply));
         map.insert(String::from("/"), MalType::Function(divide));
-        Env { data:map }
+
+        Rc::new(RefCell::new(Env {data:map , parent:None,}))
+
     }
-    pub fn set(&mut self, key: String, value:MalType) {
+    pub fn new(parent_env: EnvRef) -> EnvRef {
+        Rc::new(RefCell::new(Env {data:HashMap::new(), parent: Some(parent_env),}))
+    }
+    pub fn set(&mut self, key: String, value: MalType) {
         self.data.insert(key, value);
     }
-    pub fn get(&self, key:&str) -> Option<&MalType> {
-        self.data.get(key)
+    pub fn get(&self, key:&str) -> Option<MalType> {
+        if let Some(val)= self.data.get(key).cloned() {
+            Some(val)
+        }else if let Some(par) = &self.parent {
+            par.borrow().get(key)
+        }else {
+            None
+        }
     }
 }

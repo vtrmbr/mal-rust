@@ -59,7 +59,7 @@ fn err_ds(error: String) {
 
 
 fn main() {
-    let repl_env = Env::new();
+    let repl_env = Env::root();
     loop{
         let mut line = String::new();
 
