@@ -113,11 +113,18 @@ pub fn tonkenize(entry:&str) -> Vec<String> {
 }
 
 pub fn read_atom(reader: &mut Reader) -> Result<MalType, String> {
-    let possible_token = reader.next();
-    let token = possible_token.ok_or("ERROR: empty token".to_string())?;
-    match token.parse::<i64>() {
-        Ok(n) => Ok(MalType::Number(n)),
-        Err(_) => Ok(MalType::Symbol(token)),
+    let token = reader.next().ok_or("ERROR: empty token".to_string())?;
+
+    match token.as_str() {
+        "true" => Ok(MalType::Bool(true)),
+        "false" => Ok(MalType::Bool(false)),
+        "nil" => Ok(MalType::Nil),
+        _ =>{
+            match token.parse::<i64>() {
+                Ok(n) => Ok(MalType::Number(n)),
+                Err(_) => Ok(MalType::Symbol(token)),
+            }
+        }
     }
 }
 

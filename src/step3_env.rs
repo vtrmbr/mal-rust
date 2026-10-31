@@ -2,6 +2,7 @@ mod reader;
 mod types;
 mod printer;
 mod env;
+mod mal_core;
 
 use std::io::{Write, stdin, stdout};
 use crate::reader::read_str;
@@ -101,6 +102,8 @@ fn eval(line: MalType,repl_env: EnvRef) -> Result<MalType, String> {
             }
         }
         MalType::Function(fun) => Ok(MalType::Function(fun)),
+        MalType::Bool(b) => Ok(MalType::Bool(b)),
+        MalType::Nil => Ok(MalType::Nil),
     }
 }
 

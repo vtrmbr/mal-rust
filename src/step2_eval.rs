@@ -2,6 +2,7 @@ mod reader;
 mod types;
 mod printer;
 mod env;
+mod mal_core;
 
 use std::io::{Write, stdin, stdout};
 use crate::reader::read_str;

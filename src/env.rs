@@ -1,4 +1,5 @@
 use crate::types::MalType;
+use crate::mal_core::register_env;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -10,50 +11,13 @@ pub struct Env {
     parent: Option<EnvRef>,
 }
 
-fn add (inputs: Vec<MalType>) -> Result<MalType, String> {
-    match inputs.as_slice() {
-        [MalType::Number(a),MalType::Number(b)] => Ok(MalType::Number(a+b)),
-        _ => Err(String::from("Token isn't a number")),
-    }
-}
-
-fn subtract (inputs: Vec<MalType>) -> Result<MalType, String> {
-    match inputs.as_slice() {
-        [MalType::Number(a),MalType::Number(b)] => Ok(MalType::Number(a-b)),
-        _ => Err(String::from("Token isn't a number")),
-    }
-}
-
-fn multiply (inputs: Vec<MalType>) -> Result<MalType, String> {
-    match inputs.as_slice() {
-        [MalType::Number(a),MalType::Number(b)] => Ok(MalType::Number(a*b)),
-        _ => Err(String::from("Token isn't a number")),
-    }
-}
-
-fn divide (inputs: Vec<MalType>) -> Result<MalType, String> {
-    match inputs.as_slice() {
-        [MalType::Number(a),MalType::Number(b)] => {
-
-            match a.checked_div(*b) {
-                Some(value) => Ok(MalType::Number(value)),
-                None => Err(String::from("Divided by zero or caused signed overflow")),
-            }
-        }
-        _ => Err(String::from("Token isn't a number")),
-    }
-}
-
 impl Env {
     pub fn root() -> EnvRef {
-        let mut map: HashMap<String, MalType> = HashMap::new();
-        map.insert(String::from("+"), MalType::Function(add));
-        map.insert(String::from("-"), MalType::Function(subtract));
-        map.insert(String::from("*"), MalType::Function(multiply));
-        map.insert(String::from("/"), MalType::Function(divide));
+        let env = Rc::new(RefCell::new(Env {data:HashMap::new(), parent:None,}));
 
-        Rc::new(RefCell::new(Env {data:map , parent:None,}))
+        register_env(env.clone());
 
+        env
     }
     pub fn new(parent_env: EnvRef) -> EnvRef {
         Rc::new(RefCell::new(Env {data:HashMap::new(), parent: Some(parent_env),}))
@@ -61,6 +25,19 @@ impl Env {
     pub fn set(&mut self, key: String, value: MalType) {
         self.data.insert(key, value);
     }
+    pub fn new_with_binds(parent_env: EnvRef,binds: &[String],exprs: &[MalType]) -> Result<EnvRef,String> {
+        if binds.len() != exprs.len() {
+            Err(format!("Expected {} parameters, got {}",binds.len(),exprs.len()))
+        } else {
+            let env = Env::new(parent_env);
+            for (index,parameter) in binds.iter().enumerate() {
+                env.borrow_mut().set(parameter.to_string(),exprs[index].clone());
+            }
+            Ok(env)
+        }
+    }
+
+
     pub fn get(&self, key:&str) -> Option<MalType> {
         if let Some(val)= self.data.get(key).cloned() {
             Some(val)
@@ -69,5 +46,17 @@ impl Env {
         }else {
             None
         }
+    }
+}
+
+impl std::fmt::Debug for Env {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "#<env>")
+    }
+}
+
+impl PartialEq for Env {
+    fn eq(&self, _other: &Env) -> bool {
+        false
     }
 }
