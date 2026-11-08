@@ -6,6 +6,17 @@ use std::rc::Rc;
 
 pub type EnvRef = Rc<RefCell<Env>>;
 
+pub fn root_of(env: &EnvRef) -> EnvRef {
+    let mut current = env.clone();
+    loop {
+        let parent = current.borrow().parent.clone();
+        match parent {
+            Some(p) => current = p,
+            None => return current,
+        }
+    }
+}
+
 pub struct Env {
     data: HashMap<String,MalType>,
     parent: Option<EnvRef>,
