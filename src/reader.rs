@@ -213,6 +213,23 @@ pub fn read_form(reader: &mut Reader) -> Result<MalType, String> {
             reader.next();
             Ok(MalType::List([MalType::Symbol(String::from("deref")),read_form(reader)?].to_vec()))
         }
+        "'" => {
+            reader.next();
+            Ok(MalType::List([MalType::Symbol(String::from("quote")),read_form(reader)?].to_vec()))
+        }
+        "`" => {
+            reader.next();
+            Ok(MalType::List([MalType::Symbol(String::from("quasiquote")),read_form(reader)?].to_vec()))
+        }
+        "~" => {
+            reader.next();
+            Ok(MalType::List([MalType::Symbol(String::from("unquote")),read_form(reader)?].to_vec()))
+        }
+        "~@" => {
+            reader.next();
+            Ok(MalType::List([MalType::Symbol(String::from("splice-unquote")),read_form(reader)?].to_vec()))
+        }
+
         _ => read_atom(reader),
     }
 }

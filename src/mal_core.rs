@@ -13,6 +13,36 @@ pub fn print_str (inputs: Vec<MalType>) -> Result<MalType,String> {
     Ok(MalType::Str(join_args(&inputs,true," ")?))
 }
 
+pub fn cons (inputs: Vec<MalType>) -> Result<MalType,String> {
+    match inputs.as_slice() {
+        [m,MalType::List(g)]|[m,MalType::Vector(g)] => {
+            let mut new_list: Vec<MalType> = [m.clone()].to_vec();
+            new_list.extend_from_slice(&g);
+            Ok(MalType::List(new_list))
+        }
+        _ => Err(String::from("cons expects two parameters with the second one being a list or a vector"))
+    }
+}
+
+pub fn concat (inputs: Vec<MalType>) -> Result<MalType,String> {
+    let mut new_list: Vec<MalType> = Vec::new();
+    for mal_type in inputs {
+
+        match mal_type {
+            MalType::List(g)|MalType::Vector(g) => new_list.extend_from_slice(&g),
+            _ => return Err(String::from("concat expects only lists or vectors as it's parameters")),
+        }
+    }
+    Ok(MalType::List(new_list))
+}
+
+pub fn vec (inputs: Vec<MalType>) -> Result<MalType,String> {
+    match inputs.as_slice() {
+        [MalType::List(g)]|[MalType::Vector(g)] => Ok(MalType::Vector(g.to_vec())),
+        _ => return Err(String::from("vec expects only a list or a vector as it's parameter")),
+    }
+}
+
 pub fn str_fn (inputs: Vec<MalType>) -> Result<MalType,String> {
     Ok(MalType::Str(join_args(&inputs,false,"")?))
 }
@@ -199,6 +229,9 @@ pub fn register_env (env: EnvRef) {
         ("list?",is_list),
         ("empty?",is_empty),
         ("count",count),
+        ("cons",cons),
+        ("concat",concat),
+        ("vec",vec),
     ];
     for &(name, function) in functions {
         env.borrow_mut().set(String::from(name), MalType::Function(function));

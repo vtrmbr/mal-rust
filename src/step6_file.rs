@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::io::{Write, stdin, stdout};
 
 
-use crate::reader::{read_str, tonkenize};
+use crate::reader::read_str;
 use crate::printer::pr_str;
 use crate::types::MalType;
 use crate::env::{Env,EnvRef,root_of};
@@ -316,9 +316,7 @@ fn main() {
     loop{
         let mut line = String::new();
 
-        // for token  in tonkenize("{\"a\"\n 1}") {
-        //     println!("{}",token);
-        // }
+
 
         print!("user> ");
         stdout().flush().unwrap();
