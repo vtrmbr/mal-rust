@@ -126,7 +126,7 @@ pub fn tonkenize(entry:&str) -> Vec<String> {
     tokens
 }
 
-pub fn read_atom(reader: &mut Reader) -> Result<MalType, String> {
+ fn read_atom(reader: &mut Reader) -> Result<MalType, String> {
     let token = reader.next().ok_or("ERROR: empty token".to_string())?;
 
     match token.as_str() {
@@ -142,6 +142,9 @@ pub fn read_atom(reader: &mut Reader) -> Result<MalType, String> {
             chars.next();
             while chars.peek() != Some(&'"') {
 
+                // if let Some(s) = chars.peek() {
+                //     print!("{}",s);
+                // }
                 if chars.peek() == Some(&'\\') {
                     chars.next();
                     match chars.peek() {
@@ -152,7 +155,7 @@ pub fn read_atom(reader: &mut Reader) -> Result<MalType, String> {
                         _ => return Err(String::from("invalid sequece to \\")),
                     }
                 } else {
-                    string.push(*chars.peek().ok_or(String::from("Error"))?);
+                    string.push(*chars.peek().ok_or(String::from("unclosed string"))?);
                 }
                 chars.next();
             }

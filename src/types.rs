@@ -6,6 +6,11 @@ use std::rc::Rc;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HashKey { Str(String), Keyword(String) }
 
+#[derive(Debug)]
+pub enum MalError{
+    Text(String),
+    Exception(MalType),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MalType{
@@ -24,6 +29,31 @@ pub enum MalType{
         params: Vec<String>,
         body: Box<MalType>,
         env: EnvRef,
+        is_macro: bool,
+    }
+}
+
+impl From<String> for MalType {
+    fn from(s: String) -> Self {
+        MalType::Str(s)
+    }
+}
+
+impl From<&str> for MalType {
+    fn from(s: &str) -> Self {
+        MalType::Str(String::from(s))
+    }
+}
+
+impl From<String> for MalError {
+    fn from(s: String) -> Self {
+        MalError::Text(s)
+    }
+}
+
+impl From<&str> for MalError {
+    fn from(s: &str) -> Self {
+        MalError::Text(String::from(s))
     }
 }
 

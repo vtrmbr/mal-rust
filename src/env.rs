@@ -37,14 +37,29 @@ impl Env {
         self.data.insert(key, value);
     }
     pub fn new_with_binds(parent_env: EnvRef,binds: &[String],exprs: &[MalType]) -> Result<EnvRef,String> {
-        if binds.len() != exprs.len() {
-            Err(format!("Expected {} parameters, got {}",binds.len(),exprs.len()))
-        } else {
-            let env = Env::new(parent_env);
-            for (index,parameter) in binds.iter().enumerate() {
-                env.borrow_mut().set(parameter.to_string(),exprs[index].clone());
+
+
+        if let Some(i) = binds.iter().position(|b| b == "&") {
+            if binds.len()== i+2{
+                let env = Env::new(parent_env);
+                for (index,parameter) in binds[..i].iter().enumerate() {
+                    env.borrow_mut().set(parameter.to_string(),exprs[index].clone());
+                }
+                env.borrow_mut().set(binds[i+1].clone(),MalType::List(exprs[i..].to_vec()));
+                Ok(env)
+            }else {
+                Err(String::from("& in a fn* can only have one parameter after it"))
             }
-            Ok(env)
+        }else {
+            if binds.len() != exprs.len() {
+                Err(format!("tryed to create a new enviroment with {} binds but only {} exprs to be binded",binds.len(),exprs.len()))
+            } else {
+                let env = Env::new(parent_env);
+                for (index,parameter) in binds.iter().enumerate() {
+                    env.borrow_mut().set(parameter.to_string(),exprs[index].clone());
+                }
+                Ok(env)
+            }
         }
     }
 
