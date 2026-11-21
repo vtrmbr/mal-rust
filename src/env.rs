@@ -52,7 +52,7 @@ impl Env {
             }
         }else {
             if binds.len() != exprs.len() {
-                Err(format!("tryed to create a new enviroment with {} binds but only {} exprs to be binded",binds.len(),exprs.len()))
+                Err(format!("tryed to create a new enviroment with {} binds but {} exprs to be binded",binds.len(),exprs.len()))
             } else {
                 let env = Env::new(parent_env);
                 for (index,parameter) in binds.iter().enumerate() {

@@ -158,7 +158,7 @@ pub fn tonkenize(entry:&str) -> Vec<String> {
                         _ => return Err(String::from("invalid sequece to \\")),
                     }
                 } else {
-                    string.push(*chars.peek().ok_or(String::from("unclosed string"))?);
+                    string.push(*chars.peek().ok_or(String::from("unbalanced string"))?);
                 }
                 chars.next();
             }

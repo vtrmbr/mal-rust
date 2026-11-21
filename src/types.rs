@@ -25,7 +25,7 @@ pub enum MalType{
     Nil,
     Str(String),
     Atom(Rc<RefCell<MalType>>),
-    Function(fn(Vec<MalType>)-> Result<MalType, String>,Box<MalType>),
+    Function(fn(Vec<MalType>)-> Result<MalType, MalError>,Box<MalType>),
     UserFunction {
         params: Vec<String>,
         body: Box<MalType>,
