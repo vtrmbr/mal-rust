@@ -12,24 +12,26 @@ pub enum MalError{
     Exception(MalType),
 }
 
+#[allow(unpredictable_function_pointer_comparisons)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum MalType{
     Number(i64),
     Symbol(String),
-    List(Vec<MalType>),
-    Vector(Vec<MalType>),
-    HMap(HashMap<HashKey,MalType>),
+    List(Vec<MalType>,Box<MalType>),
+    Vector(Vec<MalType>,Box<MalType>),
+    HMap(HashMap<HashKey,MalType>,Box<MalType>),
     Keyword(String),
     Bool(bool),
     Nil,
     Str(String),
     Atom(Rc<RefCell<MalType>>),
-    Function(fn(Vec<MalType>)-> Result<MalType, String>),
+    Function(fn(Vec<MalType>)-> Result<MalType, String>,Box<MalType>),
     UserFunction {
         params: Vec<String>,
         body: Box<MalType>,
         env: EnvRef,
         is_macro: bool,
+        meta: Box<MalType>,
     }
 }
 

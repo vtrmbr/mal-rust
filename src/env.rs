@@ -45,7 +45,7 @@ impl Env {
                 for (index,parameter) in binds[..i].iter().enumerate() {
                     env.borrow_mut().set(parameter.to_string(),exprs[index].clone());
                 }
-                env.borrow_mut().set(binds[i+1].clone(),MalType::List(exprs[i..].to_vec()));
+                env.borrow_mut().set(binds[i+1].clone(),MalType::List(exprs[i..].to_vec(),Box::new(MalType::Nil)));
                 Ok(env)
             }else {
                 Err(String::from("& in a fn* can only have one parameter after it"))

@@ -13,7 +13,7 @@ pub fn pr_str (input: &MalType,print_readably: bool) -> Result<String,String> {
 
         MalType::Bool(b)=> Ok(format!("{}",b)),
 
-        MalType::Function(_) => Ok(String::from("#<function>")),
+        MalType::Function(_,_) => Ok(String::from("#<function>")),
 
         MalType::UserFunction { .. } => Ok(String::from("#<function>")),
 
@@ -40,7 +40,7 @@ pub fn pr_str (input: &MalType,print_readably: bool) -> Result<String,String> {
             }
         }
 
-        MalType::List(l) => {
+        MalType::List(l,_) => {
             let mut texts: Vec<String> = Vec::new();
             for text in l {
                 texts.push(pr_str(text,print_readably)?);
@@ -48,14 +48,14 @@ pub fn pr_str (input: &MalType,print_readably: bool) -> Result<String,String> {
             Ok(format!("({})", texts.join(" ")))
         }
 
-        MalType::Vector(v) => {
+        MalType::Vector(v,_) => {
             let mut texts: Vec<String> = Vec::new();
             for text in v {
                 texts.push(pr_str(text,print_readably)?);
             }
             Ok(format!("[{}]", texts.join(" ")))
         }
-        MalType::HMap(h) => {
+        MalType::HMap(h,_) => {
            Ok(format!(
                 "{{{}}}",
                 h.iter().map(|x| Ok(format!(

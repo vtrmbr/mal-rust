@@ -28,6 +28,9 @@ fn is_boundary(character: char) -> bool {
     }
 }
 
+
+
+
 fn hash_maper(list: Vec<MalType>) -> Result<MalType,String> {
 
     if list.len() % 2 == 0 {
@@ -35,7 +38,7 @@ fn hash_maper(list: Vec<MalType>) -> Result<MalType,String> {
         for pair in list.chunks(2){
             hash.insert(mal_to_hash(&pair[0])?,pair[1].clone());
         }
-        Ok(MalType::HMap(hash))
+        Ok(MalType::HMap(hash,Box::new(MalType::Nil)))
     }else {
         Err(String::from("A hash map requires an even number of elements"))
     }
@@ -192,8 +195,8 @@ pub fn read_list(reader: &mut Reader) -> Result<MalType, String> {
 
             reader.next();
             match closing_character {
-                ")" => return Ok(MalType::List(list)),
-                "]" => return Ok(MalType::Vector(list)),
+                ")" => return Ok(MalType::List(list,Box::new(MalType::Nil))),
+                "]" => return Ok(MalType::Vector(list,Box::new(MalType::Nil))),
                 "}" => return Ok(hash_maper(list)?),
 
                 a => return Err(format!("{} can't be closing character",a))
@@ -208,29 +211,33 @@ pub fn read_list(reader: &mut Reader) -> Result<MalType, String> {
 
 
 pub fn read_form(reader: &mut Reader) -> Result<MalType, String> {
-    let possible_token = reader.peek();
-    let token = possible_token.ok_or("ERROR: empty token".to_string())?;
+    let token = reader.peek().ok_or("ERROR: empty token".to_string())?;
     match token.as_str() {
         "("|"["|"{" => read_list(reader),
         "@" => {
             reader.next();
-            Ok(MalType::List([MalType::Symbol(String::from("deref")),read_form(reader)?].to_vec()))
+            Ok(MalType::List([MalType::Symbol(String::from("deref")),read_form(reader)?].to_vec(),Box::new(MalType::Nil)))
         }
         "'" => {
             reader.next();
-            Ok(MalType::List([MalType::Symbol(String::from("quote")),read_form(reader)?].to_vec()))
+            Ok(MalType::List([MalType::Symbol(String::from("quote")),read_form(reader)?].to_vec(),Box::new(MalType::Nil)))
         }
         "`" => {
             reader.next();
-            Ok(MalType::List([MalType::Symbol(String::from("quasiquote")),read_form(reader)?].to_vec()))
+            Ok(MalType::List([MalType::Symbol(String::from("quasiquote")),read_form(reader)?].to_vec(),Box::new(MalType::Nil)))
         }
         "~" => {
             reader.next();
-            Ok(MalType::List([MalType::Symbol(String::from("unquote")),read_form(reader)?].to_vec()))
+            Ok(MalType::List([MalType::Symbol(String::from("unquote")),read_form(reader)?].to_vec(),Box::new(MalType::Nil)))
         }
         "~@" => {
             reader.next();
-            Ok(MalType::List([MalType::Symbol(String::from("splice-unquote")),read_form(reader)?].to_vec()))
+            Ok(MalType::List([MalType::Symbol(String::from("splice-unquote")),read_form(reader)?].to_vec(),Box::new(MalType::Nil)))
+        }
+        "^" => {
+            reader.next();
+            let first = read_form(reader)?;
+            Ok(MalType::List([MalType::Symbol(String::from("with-meta")),read_form(reader)?,first].to_vec(),Box::new(MalType::Nil)))
         }
 
         _ => read_atom(reader),
