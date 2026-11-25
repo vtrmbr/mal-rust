@@ -9,8 +9,8 @@ It is complete through the last step (step A). It also runs mal's own implementa
 - Steps 0 to A are implemented, including the deferrable parts of the guide: strings, keywords, vectors, hash-maps, atoms, macros, quasiquote, `try*`/`catch*`/`throw`, metadata (`meta`, `with-meta`, `^`), `readline`, `time-ms` and the rest of the core library.
 - The official tests for every step pass. One optional step A test (`time-ms`) compares two timestamps taken a moment apart, so it can fail on a very fast machine.
 - Not implemented: the optional host-language interop function (`rust-eval`). Rust is compiled ahead of time and has no runtime `eval`, so there is nothing sensible to build it on.
-- steps 0 through 9 might not buid because fo changes made in later steps to the shared modules.
-- prehabs will still add some extra features if I feel like it, this is just a project for study, don't expect anything.
+- Steps 0 through 9 might not build because of changes made in later steps to the shared modules.
+- Maybe I will still add some extra features if I feel like it, this is just a project for study, don't expect anything.
 
 ## Build and run
 
