@@ -3,6 +3,7 @@ mod types;
 mod printer;
 mod env;
 mod mal_core;
+mod evaluator;
 
 use std::io::{Write, stdin, stdout};
 use crate::reader::read_str;
@@ -20,7 +21,7 @@ fn eval(line: Result<MalType, String>) -> Result<MalType, String> {
 
 fn print(possible_line: Result<MalType, String>) -> Result<String, String> {
     let line = possible_line?;
-    pr_str(&line)
+    pr_str(&line,true)
 }
 
 fn rep(line: &str) -> Result<String, String> {

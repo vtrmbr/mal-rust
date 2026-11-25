@@ -21,7 +21,7 @@ fn main() {
     loop{
         let mut line = String::new();
 
-        print!("user>");
+        print!("user> ");
         stdout().flush().unwrap();
 
         let size = stdin()

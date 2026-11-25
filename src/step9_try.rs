@@ -3,6 +3,7 @@ mod types;
 mod printer;
 mod env;
 mod mal_core;
+mod evaluator;
 
 use std::collections::HashMap;
 use std::io::{Write, stdin, stdout};
@@ -15,7 +16,7 @@ use crate::env::{Env,EnvRef,root_of};
 
 fn apply_fn (f: &MalType, args: Vec<MalType>) -> Result<MalType,MalError> {
     match f {
-        MalType::Function(fun) => Ok(fun(args)?),
+        MalType::Function(fun,_) => Ok(fun(args)?),
         MalType::UserFunction { params, body, env, .. } => eval(*body.clone(),Env::new_with_binds(env.clone(),&params,&args)?),
         _ => Err(format!("{:?} isn't a function",f).into()),
     }
@@ -23,18 +24,18 @@ fn apply_fn (f: &MalType, args: Vec<MalType>) -> Result<MalType,MalError> {
 
 
 fn no_unquote_quasiquote (group: Vec<MalType>) -> Result<MalType,String> {
-    let mut result = MalType::List(Vec::new());
+    let mut result = MalType::List(Vec::new(),Box::new(MalType::Nil));
     if !group.is_empty() {
 
         for elt in group.iter().rev(){
 
             match elt {
-                MalType::List(l) if l.first() == Some(&MalType::Symbol("splice-unquote".to_string())) => {
+                MalType::List(l,_) if l.first() == Some(&MalType::Symbol("splice-unquote".to_string())) => {
                     result = MalType::List([
                         MalType::Symbol(String::from("concat")),
                                            l.get(1).ok_or(String::from("splice-unquote expects at least a paramater")).cloned()?,
                                            result,
-                    ].to_vec());
+                    ].to_vec(),Box::new(MalType::Nil));
                 }
 
                 _ => {
@@ -42,7 +43,7 @@ fn no_unquote_quasiquote (group: Vec<MalType>) -> Result<MalType,String> {
                         MalType::Symbol(String::from("cons")),
                                            quasiquote(elt.clone())?,
                                            result,
-                    ].to_vec());
+                    ].to_vec(),Box::new(MalType::Nil));
                 }
             }
         }
@@ -52,7 +53,7 @@ fn no_unquote_quasiquote (group: Vec<MalType>) -> Result<MalType,String> {
 
 fn quasiquote (ast: MalType) -> Result<MalType,String> {
     match ast {
-        MalType::List(lis) => {
+        MalType::List(lis,_) => {
             if lis.first() == Some(&MalType::Symbol("unquote".to_string()))  {
                 return lis.get(1).ok_or(String::from("unquote expects at least a paramater")).cloned();
             }else {
@@ -60,14 +61,14 @@ fn quasiquote (ast: MalType) -> Result<MalType,String> {
             }
         }
 
-        MalType::Vector(v) => {
+        MalType::Vector(v,_) => {
             return Ok(MalType::List([
                 MalType::Symbol(String::from("vec")),
                                     no_unquote_quasiquote(v)?,
-            ].to_vec()));
+            ].to_vec(),Box::new(MalType::Nil)));
         }
 
-        a @ MalType::HMap(_) | a @ MalType::Symbol(_)=> return Ok(MalType::List(vec![MalType::Symbol(String::from("quote")), a])),
+        a @ MalType::HMap(_,_) | a @ MalType::Symbol(_)=> return Ok(MalType::List(vec![MalType::Symbol(String::from("quote")), a],Box::new(MalType::Nil))),
 
         a => return Ok(a)
     }
@@ -107,27 +108,27 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
 
             MalType::Atom(ato) => return Ok(MalType::Atom(ato)),
 
-            MalType::Function(fun) => return Ok(MalType::Function(fun)),
+            MalType::Function(fun,m) => return Ok(MalType::Function(fun,m)),
 
-            MalType::UserFunction { params, body, env, is_macro } => return Ok(MalType::UserFunction { params, body, env, is_macro }),
+            MalType::UserFunction { params, body, env, is_macro ,meta} => return Ok(MalType::UserFunction { params, body, env, is_macro ,meta}),
 
-            MalType::Vector(vec) => {
+            MalType::Vector(vec,_) => {
                 let mut evaluated_vec = Vec::new();
                 for token in vec {
                     evaluated_vec.push(eval(token,repl_env.clone())?);
                 }
-                return Ok(MalType::Vector(evaluated_vec));
+                return Ok(MalType::Vector(evaluated_vec,Box::new(MalType::Nil)));
             }
 
-            MalType::HMap(map) => {
+            MalType::HMap(map,_) => {
                 let mut eval_map =HashMap::new();
                 for pair in map.iter() {
                     eval_map.insert(pair.0.clone(),eval(pair.1.clone(),repl_env.clone())?);
                 }
-                return Ok(MalType::HMap(eval_map));
+                return Ok(MalType::HMap(eval_map,Box::new(MalType::Nil)));
             }
 
-            MalType::List(lis) => {
+            MalType::List(lis,_) => {
                 match lis.first() {
 
                     Some(MalType::Symbol(s)) if s == "apply" => {
@@ -136,7 +137,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
 
                                 let eval_tokens = lis[1..].iter().map(|x| eval(x.clone(),repl_env.clone())).collect::<Result<Vec<_>,MalError>>()?;
                                 match eval_tokens.as_slice() {
-                                    [f,middle @ ..,MalType::Vector(g)]|[f,middle @ ..,MalType::List(g)] => return apply_fn(&f,[middle,g.as_slice()].concat()),
+                                    [f,middle @ ..,MalType::Vector(g,_)]|[f,middle @ ..,MalType::List(g,_)] => return apply_fn(&f,[middle,g.as_slice()].concat()),
                                     _ => return Err(MalError::from("apply expects a vector or a list as it's last paramater")),
                                 }
                             }
@@ -150,8 +151,8 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
 
                                 let eval_tokens = lis[1..].iter().map(|x| eval(x.clone(),repl_env.clone())).collect::<Result<Vec<_>,MalError>>()?;
                                 match eval_tokens.as_slice() {
-                                    [f,MalType::Vector(g)]|[f,MalType::List(g)] => {
-                                        return Ok(MalType::List(g.iter().map(|x| apply_fn(f,[x.clone()].to_vec())).collect::<Result<Vec<_>,MalError>>()?));
+                                    [f,MalType::Vector(g,_)]|[f,MalType::List(g,_)] => {
+                                        return Ok(MalType::List(g.iter().map(|x| apply_fn(f,[x.clone()].to_vec())).collect::<Result<Vec<_>,MalError>>()?,Box::new(MalType::Nil)));
                                     }
                                     _ => return Err(MalError::from("map expects a vector or a list as it's second paramater")),
                                 }
@@ -171,7 +172,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
                                 continue;
                             }
 
-                            [_,a,MalType::List(l)] => {
+                            [_,a,MalType::List(l,_)] => {
                                 match l.as_slice(){
 
                                     [MalType::Symbol(s),MalType::Symbol(b),c] if s == "catch*" => {
@@ -213,8 +214,8 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
                         match lis.as_slice(){
                             [_,MalType::Symbol(sy),m]=> {
                                 if let Ok(MalType::UserFunction { params, body, env,..}) = eval(m.clone(),repl_env.clone()){
-                                    repl_env.borrow_mut().set(sy.to_string(),MalType::UserFunction { params: params.clone(), body: body.clone(), env: env.clone(), is_macro: true } );
-                                    return Ok(MalType::UserFunction { params, body, env, is_macro:true });
+                                    repl_env.borrow_mut().set(sy.to_string(),MalType::UserFunction { params: params.clone(), body: body.clone(), env: env.clone(), is_macro: true, meta: Box::new(MalType::Nil) } );
+                                    return Ok(MalType::UserFunction { params, body, env, is_macro:true, meta: Box::new(MalType::Nil) });
                                 } else {
                                     return Err(String::from("defmacro! expects a user made function as its second paramater").into());
                                 }
@@ -331,7 +332,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
                     Some(MalType::Symbol(s)) if s == "fn*" => {
 
                         match lis.as_slice() {
-                            [_,MalType::List(g),f_body]|[_,MalType::Vector(g),f_body] => {
+                            [_,MalType::List(g,_),f_body]|[_,MalType::Vector(g,_),f_body] => {
                                 let mut names = Vec::new();
                                 for element in g {
                                     match element {
@@ -343,7 +344,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
                                         }
                                     }
                                 }
-                                return Ok(MalType::UserFunction { params:names , body:Box::new(f_body.clone()) , env:repl_env.clone(), is_macro:false});
+                                return Ok(MalType::UserFunction { params:names , body:Box::new(f_body.clone()) , env:repl_env.clone(), is_macro:false, meta: Box::new(MalType::Nil)});
                             }
                             _ => return Err("fn* expects two paramaters with the first one being a list or a vector".into())
                         }
@@ -384,7 +385,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
                         let new_env = Env::new(repl_env);
 
                         match lis.get(1) {
-                            Some(MalType::List(l))|Some(MalType::Vector(l)) => {
+                            Some(MalType::List(l,_))|Some(MalType::Vector(l,_)) => {
                                 let mut i = 0;
                                 let mut key;
                                 let mut value;
@@ -423,8 +424,8 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
 
                         if let Some(first)= lis.first() {
                             match eval(first.clone(),repl_env.clone())? {
-                                MalType::Function(fun) => return Ok(fun(lis[1..].iter().map(|x| eval(x.clone(),repl_env.clone())).collect::<Result<Vec<_>, MalError>>()?)?),
-                                MalType::UserFunction { params, body, env, is_macro } =>{
+                                MalType::Function(fun,_) => return Ok(fun(lis[1..].iter().map(|x| eval(x.clone(),repl_env.clone())).collect::<Result<Vec<_>, MalError>>()?)?),
+                                MalType::UserFunction { params, body, env, is_macro,.. } =>{
 
                                     if is_macro {
                                         let macro_env = Env::new_with_binds(env.clone(),&params ,&lis[1..])?;
@@ -440,7 +441,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, MalError> {
                                 t => return  Err(format!("{:?} isn't a function",t).into()),
                             }
                         } else {
-                            return Ok(MalType::List(Vec::new()));
+                            return Ok(MalType::List(Vec::new(),Box::new(MalType::Nil)));
                         }
 
                     }
@@ -496,7 +497,8 @@ fn main() {
             String::from("*ARGV*"),
                                   MalType::List(
                                       arguments.iter().skip(2)
-                                      .map(|x| MalType::Str(x.clone())).collect()
+                                      .map(|x| MalType::Str(x.clone())).collect(),
+                                      Box::new(MalType::Nil)
                                   )
         );
 
@@ -511,7 +513,7 @@ fn main() {
 
         return;
     } else {
-        repl_env.borrow_mut().set(String::from("*ARGV*"),MalType::List(Vec::new()));
+        repl_env.borrow_mut().set(String::from("*ARGV*"),MalType::List(Vec::new(),Box::new(MalType::Nil)));
     }
 
     loop{

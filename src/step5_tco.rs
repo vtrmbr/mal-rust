@@ -3,11 +3,12 @@ mod types;
 mod printer;
 mod env;
 mod mal_core;
+mod evaluator;
 
 use std::io::{Write, stdin, stdout};
 use crate::reader::read_str;
 use crate::printer::pr_str;
-use crate::types::MalType;
+use crate::types::{MalType,MalError};
 use crate::env::{Env,EnvRef};
 
 
@@ -22,6 +23,9 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
 
     loop {
         match line {
+
+            MalType::HMap(_,_)|MalType::Atom(_)|MalType::Vector(_,_)|MalType::Keyword(_)|MalType::Str(_) => return Err(String::from("type not implemented in this version")),
+
             MalType::Number(num) => return Ok(MalType::Number(num)),
 
             MalType::Symbol(sym) => return repl_env.borrow().get(sym.as_str()).ok_or(format!("'{}' not found", sym)),
@@ -30,11 +34,11 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
 
             MalType::Nil => return Ok(MalType::Nil),
 
-            MalType::Function(fun) => return Ok(MalType::Function(fun)),
+            MalType::Function(fun,m) => return Ok(MalType::Function(fun,m)),
 
-            MalType::UserFunction { params, body, env } => return Ok(MalType::UserFunction { params, body, env }),
+            MalType::UserFunction { params, body, env, is_macro, meta } => return Ok(MalType::UserFunction { params, body, env, is_macro, meta }),
 
-            MalType::List(lis) => {
+            MalType::List(lis,_) => {
                 match lis.first() {
 
                     Some(MalType::Symbol(s)) if s == "if" => {
@@ -85,7 +89,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
 
                     Some(MalType::Symbol(s)) if s == "fn*" => {
                         match lis.get(1) {
-                            Some(MalType::List(l)) => {
+                            Some(MalType::List(l,_)) => {
                                 match lis.get(2) {
                                     None => return Err(String::from("Function has no body")),
                                     Some(body) => {
@@ -100,7 +104,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
                                                 }
                                             }
                                         }
-                                        return Ok(MalType::UserFunction { params:names , body:Box::new(body.clone()) , env:repl_env.clone()})
+                                        return Ok(MalType::UserFunction { params:names , body:Box::new(body.clone()) , env:repl_env.clone(), is_macro: false, meta: Box::new(MalType::Nil)})
                                     }
                                 }
                             }
@@ -134,7 +138,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
                         let new_env = Env::new(repl_env);
 
                         match lis.get(1) {
-                            Some(MalType::List(l)) => {
+                            Some(MalType::List(l,_)) => {
                                 let mut i = 0;
                                 let mut key;
                                 let mut value;
@@ -178,15 +182,22 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
 
 
                         match eval_terms.first() {
-                            Some(MalType::Function(fun)) => return fun(eval_terms[1..].to_vec()),
-                            Some(MalType::UserFunction { params, body, env }) =>{
+                            Some(MalType::Function(fun,_)) => {
+                                let a =fun(eval_terms[1..].to_vec());
+                                match a {
+                                    Ok(a) => return Ok(a),
+                                    Err(MalError::Text(t)) => return Err(t),
+                                    Err(MalError::Exception(excep)) => return Err(pr_str(&excep,true)?),
+                                }
+                            }
+                            Some(MalType::UserFunction { params, body, env, ..}) =>{
                                 let function_env = Env::new_with_binds(env.clone(), &params ,&eval_terms[1..])?;
                                 line = *body.clone();
                                 repl_env = function_env;
                                 continue;
                             }
                             Some(t) => return  Err(format!("{:?} isn't a function",t)),
-                            None => return Ok(MalType::List(Vec::new()))
+                            None => return Ok(MalType::List(Vec::new(),Box::new(MalType::Nil)))
                         }
                     }
                 }
@@ -196,7 +207,7 @@ fn eval(mut line: MalType,mut repl_env: EnvRef) -> Result<MalType, String> {
 }
 
 fn print(line: MalType) -> Result<String, String> {
-    pr_str(&line)
+    pr_str(&line,true)
 }
 
 fn rep(line: &str,repl_env: EnvRef) -> Result<String, String> {
